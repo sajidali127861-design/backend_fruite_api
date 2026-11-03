@@ -169,6 +169,12 @@ def delete_product(
 
     if not product:
         raise HTTPException( status_code=404,detail="Product not found")
+    has_variants=db.query(ProductVariant).filter(ProductVariant.product_id==product_id).first()
+    if has_variants:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete product with existing variants"
+        )
     db.delete(product)
     db.commit()
     return {

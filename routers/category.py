@@ -94,7 +94,7 @@ def delete_category(
 
     if not category:
         raise HTTPException(
-            status_code=404,
+            status_code=400,
             detail="Category not found"
         )
     has_products=db.query(Product).filter(Product.category_id==category_id).first()
