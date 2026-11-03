@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models.category import Category
+from models.product import Product
 from schemas.category import CategoryCreate, CategoryResponse
 from models.user import User
 from utils.dependencies import get_current_admin
@@ -86,6 +87,7 @@ def delete_category(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
+    print(f"category_id:{category_id}")
     category = db.query(Category).filter(
         Category.id == category_id
     ).first()
@@ -95,7 +97,13 @@ def delete_category(
             status_code=404,
             detail="Category not found"
         )
-
+    has_products=db.query(Product).filter(Product.category_id==category_id).first()
+    if has_products:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete category with existing products"
+        )
+    print(f"category:{category}")
     db.delete(category)
     db.commit()
 
