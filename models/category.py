@@ -1,10 +1,6 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 from database import Base
-
-from sqlalchemy import Column, Integer, String
-from database import Base
-
-
 class Category(Base):
     __tablename__ = "categories"
 
@@ -12,3 +8,9 @@ class Category(Base):
     name = Column(String, unique=True, nullable=False)
     description = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
+
+    products = relationship(
+        "Product",
+        back_populates="category",
+        cascade="all, delete-orphan"
+    )

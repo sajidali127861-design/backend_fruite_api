@@ -5,6 +5,8 @@ from models.product import Product, ProductVariant
 from models.category import Category
 from schemas.product import ProductCreate,ProductUpdate ,ProductResponse
 from models.user import User
+from models.order import OrderItem
+from models.cart import CartItem
 from utils.dependencies import get_current_admin
 
 
@@ -168,15 +170,26 @@ def delete_product(
     ).first()
 
     if not product:
-        raise HTTPException( status_code=404,detail="Product not found")
-    has_variants=db.query(ProductVariant).filter(ProductVariant.product_id==product_id).first()
-    if has_variants:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete product with existing variants"
-        )
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    variant_ids = [v.id for v in product.variants]
+
+    if variant_ids:
+        # Agar kisi order mein hai to delete mat karo
+        in_order = db.query(OrderItem).filter(
+            OrderItem.variant_id.in_(variant_ids)
+        ).first()
+        if in_order:
+            raise HTTPException(
+                status_code=400,
+                detail="Is product ke orders maujood hain, delete nahi ho sakta"
+            )
+
+        # Cart items saaf kar do
+        db.query(CartItem).filter(
+            CartItem.variant_id.in_(variant_ids)
+        ).delete(synchronize_session=False)
+
     db.delete(product)
     db.commit()
-    return {
-        "message": "Product deleted successfully"
-    }
+    return {"message": "Product deleted successfully"}

@@ -19,8 +19,7 @@ class Product(Base):
     description = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
 
-    category = relationship("Category")
-
+    category = relationship("Category", back_populates="products")
     variants = relationship(
         "ProductVariant",
         back_populates="product",

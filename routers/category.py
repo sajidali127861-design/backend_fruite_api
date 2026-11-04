@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.category import Category
 from models.product import Product
+from models.order import OrderItem
+from models.cart import CartItem
 from schemas.category import CategoryCreate, CategoryResponse
 from models.user import User
 from utils.dependencies import get_current_admin
@@ -78,8 +80,6 @@ def get_category(
         )
 
     return category
-
-
 # Delete category - Admin only
 @router.delete("/{category_id}")
 def delete_category(
@@ -87,23 +87,34 @@ def delete_category(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
-    print(f"category_id:{category_id}")
     category = db.query(Category).filter(
         Category.id == category_id
     ).first()
 
     if not category:
         raise HTTPException(
-            status_code=400,
+            status_code=404,
             detail="Category not found"
         )
-    has_products=db.query(Product).filter(Product.category_id==category_id).first()
-    if has_products:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot delete category with existing products"
-        )
-    print(f"category:{category}")
+
+    variant_ids = [
+        v.id for p in category.products for v in p.variants
+    ]
+
+    if variant_ids:
+        in_order = db.query(OrderItem).filter(
+            OrderItem.variant_id.in_(variant_ids)
+        ).first()
+        if in_order:
+            raise HTTPException(
+                status_code=400,
+                detail="Is category ke products orders mein hain, delete nahi ho sakti"
+            )
+
+        db.query(CartItem).filter(
+            CartItem.variant_id.in_(variant_ids)
+        ).delete(synchronize_session=False)
+
     db.delete(category)
     db.commit()
 
