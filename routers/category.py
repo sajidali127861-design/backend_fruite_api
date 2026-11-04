@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from database import get_db
 from models.category import Category
 from models.product import Product
 from models.order import OrderItem
 from models.cart import CartItem
-from schemas.category import CategoryCreate, CategoryResponse
 from models.user import User
+from schemas.category import CategoryCreate, CategoryResponse
 from utils.dependencies import get_current_admin
 
 
@@ -15,12 +16,18 @@ router = APIRouter(
     tags=["Categories"]
 )
 
+# ------------------------------------------------------------------
+# IMPORTANT: apne models ke mutabiq naam yahan likho.
+# models/order.py ke OrderItem aur models/cart.py ke CartItem mein
+# jis column mein ForeignKey("product_variants.id") hai, uska naam.
+# Common naam: product_variant_id
+# ------------------------------------------------------------------
+ORDER_ITEM_VARIANT_COL = OrderItem.product_variant_id
+CART_ITEM_VARIANT_COL = CartItem.product_variant_id
+
 
 # Create category - Admin only
-@router.post(
-    "/",
-    response_model=CategoryResponse
-)
+@router.post("/", response_model=CategoryResponse)
 def create_category(
     category: CategoryCreate,
     db: Session = Depends(get_db),
@@ -50,25 +57,14 @@ def create_category(
 
 
 # Get all categories
-@router.get(
-    "/",
-    response_model=list[CategoryResponse]
-)
-def get_categories(
-    db: Session = Depends(get_db)
-):
+@router.get("/", response_model=list[CategoryResponse])
+def get_categories(db: Session = Depends(get_db)):
     return db.query(Category).all()
 
 
 # Get single category
-@router.get(
-    "/{category_id}",
-    response_model=CategoryResponse
-)
-def get_category(
-    category_id: int,
-    db: Session = Depends(get_db)
-):
+@router.get("/{category_id}", response_model=CategoryResponse)
+def get_category(category_id: int, db: Session = Depends(get_db)):
     category = db.query(Category).filter(
         Category.id == category_id
     ).first()
@@ -80,6 +76,8 @@ def get_category(
         )
 
     return category
+
+
 # Delete category - Admin only
 @router.delete("/{category_id}")
 def delete_category(
@@ -102,8 +100,9 @@ def delete_category(
     ]
 
     if variant_ids:
+        # Agar kisi order mein hai to delete nahi hogi
         in_order = db.query(OrderItem).filter(
-            OrderItem.variant_id.in_(variant_ids)
+            ORDER_ITEM_VARIANT_COL.in_(variant_ids)
         ).first()
         if in_order:
             raise HTTPException(
@@ -111,13 +110,12 @@ def delete_category(
                 detail="Is category ke products orders mein hain, delete nahi ho sakti"
             )
 
+        # Cart items saaf kar do
         db.query(CartItem).filter(
-            CartItem.variant_id.in_(variant_ids)
+            CART_ITEM_VARIANT_COL.in_(variant_ids)
         ).delete(synchronize_session=False)
 
     db.delete(category)
     db.commit()
 
-    return {
-        "message": "Category deleted successfully"
-    }
+    return {"message": "Category deleted successfully"}

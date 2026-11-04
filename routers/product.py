@@ -159,6 +159,7 @@ def update_product(
     db.refresh(product)
     return product
 # Delete product - Admin only
+# Delete product - Admin only
 @router.delete("/{product_id}")
 def delete_product(
     product_id: int,
@@ -177,7 +178,7 @@ def delete_product(
     if variant_ids:
         # Agar kisi order mein hai to delete mat karo
         in_order = db.query(OrderItem).filter(
-            OrderItem.variant_id.in_(variant_ids)
+            OrderItem.product_variant_id.in_(variant_ids)
         ).first()
         if in_order:
             raise HTTPException(
@@ -187,7 +188,7 @@ def delete_product(
 
         # Cart items saaf kar do
         db.query(CartItem).filter(
-            CartItem.variant_id.in_(variant_ids)
+            CartItem.product_variant_id.in_(variant_ids)
         ).delete(synchronize_session=False)
 
     db.delete(product)
